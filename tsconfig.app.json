@@ -19,8 +19,7 @@
     "baseUrl": ".",
     "paths": {
       "@assets/*": ["src/assets/*"],
-      "waypoint-sidebar/*": ["node_modules/waypoint-sidebar/*"],
-      "stepscreen/*": ["node_modules/stepscreen/*"]
+      "waypoint-sidebar/*": ["node_modules/waypoint-sidebar/*"]
     },
 
     /* Linting */

@@ -129,12 +129,16 @@
   overflow: auto;
 }
 
-/* Full-bleed content (e.g. steps-project-slot): no inset plate — fills entire design surface */
+/*
+  Full-bleed polar-sys: fill design surface.
+  Overflow hidden keeps scroll inside polar `.content-scroll`, not this layer.
+*/
 .luna-chrome .luna-stage.luna-stage--fill {
   padding: 0;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
+  overflow: hidden;
 }
 
 .luna-chrome .luna-stage.luna-stage--fill > * {

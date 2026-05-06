@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { getPolarSysEmbedBase, polarSysIframeHref } from '../polarSysUrl'
 import { polarFlowIdFromHash, useFlowStore } from '../store/flowStore'
-import 'stepscreen/src/styles.css'
 
 const ARTBOARD_WIDTH = 2560
 const ARTBOARD_HEIGHT = 1440
@@ -11,10 +11,11 @@ type WaypointStepsScreenProps = {
 
 export default function WaypointStepsScreen({ polarHash }: WaypointStepsScreenProps) {
   const hostRef = useRef<HTMLDivElement>(null)
+  const [iframeLoaded, setIframeLoaded] = useState(false)
 
   useEffect(() => {
-    void import('stepscreen')
-  }, [])
+    setIframeLoaded(false)
+  }, [polarHash])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -53,14 +54,11 @@ export default function WaypointStepsScreen({ polarHash }: WaypointStepsScreenPr
     window.addEventListener('resize', scheduleScale)
     window.addEventListener('hashchange', scheduleScale)
 
-    const frame = host.querySelector<HTMLElement>('#scale-frame')
-    const board = host.querySelector<HTMLElement>('#artboard')
-    const mo =
-      frame && board
-        ? new MutationObserver(scheduleScale)
-        : null
-    if (frame && mo) mo.observe(frame, { attributes: true, attributeFilter: ['style'] })
-    if (board && mo) mo.observe(board, { attributes: true, attributeFilter: ['style'] })
+    const f = host.querySelector<HTMLElement>('#scale-frame')
+    const b = host.querySelector<HTMLElement>('#artboard')
+    const mo = f && b ? new MutationObserver(scheduleScale) : null
+    if (f && mo) mo.observe(f, { attributes: true, attributeFilter: ['style'] })
+    if (b && mo) mo.observe(b, { attributes: true, attributeFilter: ['style'] })
 
     return () => {
       if (rafId !== 0) cancelAnimationFrame(rafId)
@@ -79,11 +77,55 @@ export default function WaypointStepsScreen({ polarHash }: WaypointStepsScreenPr
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
+  /** polar-sys may post `{ type: 'polar-hash', hash: '#/monitor' }` so the shell sidebar stays in sync. */
+  useEffect(() => {
+    let expectedOrigin: string
+    try {
+      expectedOrigin = new URL(`${getPolarSysEmbedBase()}/`).origin
+    } catch {
+      return
+    }
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== expectedOrigin) return
+      const d = e.data as { type?: string; hash?: string }
+      if (d?.type !== 'polar-hash' || typeof d.hash !== 'string') return
+      if (window.location.hash !== d.hash) window.location.hash = d.hash
+      useFlowStore.getState().goToStepById(polarFlowIdFromHash(d.hash))
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+
+  const embedBase = getPolarSysEmbedBase()
+  const iframeSrc = polarSysIframeHref(polarHash)
+
   return (
     <div ref={hostRef} className="viewport">
       <div id="scale-frame" className="scale-frame">
-        <div id="artboard" className="artboard">
-          <div id="app" className="app" />
+        <div id="artboard" className="artboard polar-slot-artboard">
+          <iframe
+            key={polarHash}
+            title="polar-sys"
+            src={iframeSrc}
+            className="polar-sys-remote-frame"
+            width={ARTBOARD_WIDTH}
+            height={ARTBOARD_HEIGHT}
+            onLoad={() => setIframeLoaded(true)}
+          />
+          {!iframeLoaded ? (
+            <div
+              className="polar-sys-connect-placeholder"
+              role="status"
+              aria-live="polite"
+              aria-label="Waiting for polar-sys app"
+            >
+              <span className="polar-sys-connect-placeholder__title">Fix connection to main project</span>
+              <span className="polar-sys-connect-placeholder__hint">
+                Loading from {embedBase}. Set <code>VITE_POLAR_SYS_ORIGIN</code> to override. If this never
+                clears, confirm the polar app allows embedding from this domain.
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

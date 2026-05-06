@@ -8,7 +8,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const reactRoot = path.resolve(__dirname, 'node_modules/react')
 const reactDomRoot = path.resolve(__dirname, 'node_modules/react-dom')
 const waypointSidebarRoot = path.resolve(__dirname, 'node_modules/waypoint-sidebar')
-const stepscreenRoot = path.resolve(__dirname, 'node_modules/stepscreen')
 
 /** Bust CDN/browser cache for `public/` step images on each Vercel deploy (same path, new file). */
 const stepImgCacheKey =
@@ -29,7 +28,6 @@ export default defineConfig({
       'react-dom': reactDomRoot,
       '@assets': path.resolve(__dirname, 'src/assets'),
       'waypoint-sidebar': waypointSidebarRoot,
-      stepscreen: stepscreenRoot,
     },
   },
   optimizeDeps: {
@@ -41,7 +39,7 @@ export default defineConfig({
   },
   server: {
     fs: {
-      allow: [path.resolve(__dirname, '..'), waypointSidebarRoot, stepscreenRoot],
+      allow: [path.resolve(__dirname, '..'), waypointSidebarRoot],
     },
   },
 })
