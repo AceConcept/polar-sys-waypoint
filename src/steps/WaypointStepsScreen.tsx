@@ -19,6 +19,22 @@ export default function WaypointStepsScreen({ polarHash }: WaypointStepsScreenPr
    */
   const initialSrcRef = useRef(polarSysIframeHref(polarHash))
   const [iframeLoaded, setIframeLoaded] = useState(false)
+  /**
+   * Keep the loading shade black (matches polar-sys body `#111`) so it is invisible against polar's
+   * own background — no light flash before / between page loads. We only escalate to the visible
+   * "Fix connection" placeholder when the iframe has not loaded after a real timeout.
+   */
+  const [showConnectError, setShowConnectError] = useState(false)
+  const CONNECT_ERROR_TIMEOUT_MS = 8000
+
+  useEffect(() => {
+    if (iframeLoaded) {
+      setShowConnectError(false)
+      return
+    }
+    const t = window.setTimeout(() => setShowConnectError(true), CONNECT_ERROR_TIMEOUT_MS)
+    return () => window.clearTimeout(t)
+  }, [iframeLoaded])
 
   /**
    * Hash-only navigation: when `polarHash` changes after mount, update the iframe URL by writing
@@ -130,16 +146,24 @@ export default function WaypointStepsScreen({ polarHash }: WaypointStepsScreenPr
           />
           {!iframeLoaded ? (
             <div
-              className="polar-sys-connect-placeholder"
-              role="status"
-              aria-live="polite"
-              aria-label="Waiting for polar-sys app"
+              className={
+                showConnectError
+                  ? 'polar-sys-loading polar-sys-loading--error'
+                  : 'polar-sys-loading'
+              }
+              role={showConnectError ? 'alert' : 'presentation'}
+              aria-live={showConnectError ? 'polite' : 'off'}
+              aria-label={showConnectError ? 'polar-sys connection problem' : undefined}
             >
-              <span className="polar-sys-connect-placeholder__title">Fix connection to main project</span>
-              <span className="polar-sys-connect-placeholder__hint">
-                Loading from {embedBase}. Set <code>VITE_POLAR_SYS_ORIGIN</code> to override. If this never
-                clears, confirm the polar app allows embedding from this domain.
-              </span>
+              {showConnectError ? (
+                <>
+                  <span className="polar-sys-loading__title">Fix connection to main project</span>
+                  <span className="polar-sys-loading__hint">
+                    Loading from {embedBase}. Set <code>VITE_POLAR_SYS_ORIGIN</code> to override. If this
+                    never clears, confirm the polar app allows embedding from this domain.
+                  </span>
+                </>
+              ) : null}
             </div>
           ) : null}
         </div>

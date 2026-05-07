@@ -224,21 +224,25 @@
 }
 
 /*
-  Polar-sys iframe + placeholder (`WaypointStepsScreen`).
+  Polar-sys iframe + loading / error overlay (`WaypointStepsScreen`).
+  Background `#111` matches polar-sys body so there is no visible flash before the iframe loads.
 */
 .luna-chrome .luna-stage .polar-slot-artboard {
   position: relative;
   width: 2560px;
   height: 1440px;
+  background-color: #111111;
 }
 
 .luna-chrome .luna-stage .polar-sys-remote-frame {
   display: block;
   border: 0;
   box-sizing: border-box;
+  background-color: #111111;
 }
 
-.luna-chrome .luna-stage .polar-sys-connect-placeholder {
+/* Default loading shade: solid black, no copy — invisible against polar-sys's own background. */
+.luna-chrome .luna-stage .polar-sys-loading {
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -250,22 +254,24 @@
   padding: 2.5rem 2rem;
   box-sizing: border-box;
   text-align: center;
-  font-family:
-    Inter,
-    system-ui,
-    sans-serif;
-  background-color: #e4e4e7;
+  font-family: Inter, system-ui, sans-serif;
+  background-color: #111111;
   color: #3f3f46;
 }
 
-.luna-chrome .luna-stage .polar-sys-connect-placeholder__title {
+/* Error state: switches to the light grey "Fix connection to main project" panel. */
+.luna-chrome .luna-stage .polar-sys-loading--error {
+  background-color: #e4e4e7;
+}
+
+.luna-chrome .luna-stage .polar-sys-loading__title {
   font-size: 1.75rem;
   font-weight: 600;
   letter-spacing: -0.03em;
   color: #27272a;
 }
 
-.luna-chrome .luna-stage .polar-sys-connect-placeholder__hint {
+.luna-chrome .luna-stage .polar-sys-loading__hint {
   max-width: 36rem;
   font-size: 1.0625rem;
   font-weight: 400;
@@ -273,7 +279,7 @@
   color: #52525b;
 }
 
-.luna-chrome .luna-stage .polar-sys-connect-placeholder__hint code {
+.luna-chrome .luna-stage .polar-sys-loading__hint code {
   font-family: ui-monospace, 'Cousine', monospace;
   font-size: 0.9em;
   padding: 0.125em 0.35em;
