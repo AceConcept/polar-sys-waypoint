@@ -11,10 +11,27 @@ type WaypointStepsScreenProps = {
 
 export default function WaypointStepsScreen({ polarHash }: WaypointStepsScreenProps) {
   const hostRef = useRef<HTMLDivElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  /**
+   * Compute the iframe `src` exactly **once** on mount. We never let React update this attribute
+   * after the first render — see `useEffect` below for hash-only navigation. Re-keying or replacing
+   * `src` triggers a fresh TLS handshake / HTTP request that Vercel's JA4 mitigation can flag.
+   */
+  const initialSrcRef = useRef(polarSysIframeHref(polarHash))
   const [iframeLoaded, setIframeLoaded] = useState(false)
 
+  /**
+   * Hash-only navigation: when `polarHash` changes after mount, update the iframe URL by writing
+   * to its `src` attribute. The browser performs a fragment navigation (no HTTP fetch) when only
+   * the fragment differs from the current URL — so polar-sys is loaded once and the sidebar can
+   * scrub between #/anomaly | #/monitor | #/incident without re-fetching the document.
+   */
   useEffect(() => {
-    setIframeLoaded(false)
+    const iframe = iframeRef.current
+    if (!iframe) return
+    const next = polarSysIframeHref(polarHash)
+    if (iframe.src === next) return
+    iframe.src = next
   }, [polarHash])
 
   useEffect(() => {
@@ -97,16 +114,15 @@ export default function WaypointStepsScreen({ polarHash }: WaypointStepsScreenPr
   }, [])
 
   const embedBase = getPolarSysEmbedBase()
-  const iframeSrc = polarSysIframeHref(polarHash)
 
   return (
     <div ref={hostRef} className="viewport">
       <div id="scale-frame" className="scale-frame">
         <div id="artboard" className="artboard polar-slot-artboard">
           <iframe
-            key={polarHash}
+            ref={iframeRef}
             title="polar-sys"
-            src={iframeSrc}
+            src={initialSrcRef.current}
             className="polar-sys-remote-frame"
             width={ARTBOARD_WIDTH}
             height={ARTBOARD_HEIGHT}
