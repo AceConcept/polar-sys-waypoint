@@ -226,12 +226,23 @@
 /*
   Polar-sys iframe + loading / error overlay (`WaypointStepsScreen`).
   Background `#111` matches polar-sys body so there is no visible flash before the iframe loads.
+
+  Scrollbar-hiding trick:
+  Polar-sys is designed for a 2560×1440 viewport, but at exactly 2560px the inner content can
+  overflow by a few pixels (its own scrollbar gutter, sub-pixel rounding, padding, etc.) and a
+  horizontal/vertical scrollbar appears INSIDE the iframe. We can't style polar-sys from here
+  (cross-origin), so we give the iframe ~17px of extra width AND height (typical scrollbar
+  thickness) and let `.polar-slot-artboard` clip the overflow. The iframe's own scrollbars then
+  render in the clipped strip on the right and bottom — hidden, but still functional if the
+  user really needs to scroll. Polar-sys's contain-scale then sees a 2577×1457 viewport and
+  upscales its 2560×1440 design by ~0.66% (visually unnoticeable).
 */
 .luna-chrome .luna-stage .polar-slot-artboard {
   position: relative;
   width: 2560px;
   height: 1440px;
   background-color: #111111;
+  overflow: hidden;
 }
 
 .luna-chrome .luna-stage .polar-sys-remote-frame {
@@ -239,6 +250,8 @@
   border: 0;
   box-sizing: border-box;
   background-color: #111111;
+  width: calc(100% + 17px);
+  height: calc(100% + 17px);
 }
 
 /* Default loading shade: solid black, no copy — invisible against polar-sys's own background. */
