@@ -288,15 +288,22 @@
 }
 
 /*
-  Rail label "jitter" on expand/collapse:
-  The shell animates `width` and is itself `transform: scale(...)`-ed; the inner `.rail-label`
-  is vertical-text inside a flex column. Each animation frame the shell reflows AND the rotated
-  text re-rasterizes on subpixel boundaries, which reads as "wiggle".
-  Structural fix: render the visible label as a sibling of `.sidebar-shell`
-  (see `.luna-rail-label-overlay` below + `App.tsx`) so it lives outside every animating ancestor.
-  The original `.rail-label` is kept in the DOM so the rail's flex `space-between` still positions
-  the dots, but it's hidden visually.
+  Rail "jitter" on expand/collapse:
+  The shell animates `width` (and so does the drawer inside it), all under a `transform: scale(...)`.
+  Each frame the inner flex relayouts (drawer + rail = shell) with subpixel rounding, then the
+  whole shell is re-rasterized + scaled — so even though the rail is theoretically pinned to the
+  right edge, its painted bitmap drifts ±1px per frame. Same story for the rotated label inside.
+  Structural fix: render the rail's *visuals* (bg, border, dots, label) as a sibling of
+  `.sidebar-shell` so they live outside every animating ancestor (see `.luna-rail-overlay` below
+  + `App.tsx`). The original `<button class="sidebar-rail">` stays in place as the click target;
+  its paint is stripped.
 */
+.luna-chrome .sidebar-rail {
+  background: transparent;
+  border-left: 0;
+}
+
+.luna-chrome .sidebar-rail .rail-dot,
 .luna-chrome .sidebar-rail .rail-label {
   visibility: hidden;
 }
@@ -304,23 +311,35 @@
 /*
   Sibling of `.sidebar-shell`, mounted inside `.luna-canvas-row` (see App.tsx).
   Rail anchors right (shell is `position: absolute; right: 0` with `transform-origin: top right`),
-  so we mirror that here and size by the rail's design width times the artboard scale.
-  `pointer-events: none` lets clicks fall through to the rail button below.
+  so we mirror that here and size by the rail's design width × artboard scale.
+  `pointer-events: none` lets clicks fall through to the underlying rail button.
 */
-.luna-canvas-row > .luna-rail-label-overlay {
+.luna-canvas-row > .luna-rail-overlay {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
   width: calc(var(--sidebar-rail-w, 4.875rem) * var(--luna-scale, 1));
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  background: #404040;
+  border-left: max(1px, calc(0.0625rem * var(--luna-scale, 1))) solid rgba(255, 255, 255, 0.12);
+  box-sizing: border-box;
   pointer-events: none;
   z-index: 46;
 }
 
-.luna-canvas-row > .luna-rail-label-overlay > .luna-rail-label-overlay__text {
+.luna-canvas-row > .luna-rail-overlay > .luna-rail-overlay__dot {
+  width: calc(0.375rem * var(--luna-scale, 1));
+  height: calc(0.375rem * var(--luna-scale, 1));
+  border-radius: 50%;
+  background: var(--global-color-1, #f9fd5e);
+  flex: 0 0 auto;
+}
+
+.luna-canvas-row > .luna-rail-overlay > .luna-rail-overlay__text {
   writing-mode: vertical-rl;
   text-orientation: mixed;
   letter-spacing: 0.36em;

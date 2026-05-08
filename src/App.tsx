@@ -36,12 +36,16 @@ function App() {
             railLabel={RAIL_LABEL}
           />
           {/*
-            Rail label rendered outside the sidebar shell so it doesn't share the shell's
-            animating-width / scaled-transform context. Visual position is matched in CSS
-            (see `.luna-rail-label-overlay`); clicks pass through to the underlying rail button.
+            The visual rail (background, border, dots, label) is rendered here as a sibling of
+            `.sidebar-shell` so it lives outside the shell's animating-width + scaled-transform
+            context. The original `<button class="sidebar-rail">` stays in place as the click
+            target; its background/border/dots/label are visually hidden (see App.css).
+            `pointer-events: none` makes clicks fall through to that button.
           */}
-          <div className="luna-rail-label-overlay" aria-hidden="true">
-            <span className="luna-rail-label-overlay__text">{RAIL_LABEL}</span>
+          <div className="luna-rail-overlay" aria-hidden="true">
+            <span className="luna-rail-overlay__dot" />
+            <span className="luna-rail-overlay__text">{RAIL_LABEL}</span>
+            <span className="luna-rail-overlay__dot" />
           </div>
         </>
       )}

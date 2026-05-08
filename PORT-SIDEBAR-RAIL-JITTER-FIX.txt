@@ -1,0 +1,268 @@
+================================================================================
+SIDEBAR RAIL JITTER FIX — PORTABLE GUIDE
+================================================================================
+
+What this fixes
+---------------
+On expand/collapse of the Luna sidebar, two visual elements "wiggle" by ~1px
+per frame for the duration of the animation:
+
+  1. The vertical rail label (e.g. "Waypoint guide").
+  2. The dark rail rectangle itself (the right-edge button).
+
+After this fix, both stay rock-solid while the drawer slides in/out. The rail
+button continues to handle clicks; only its *paint* moves to a stable element
+that lives outside the animating ancestors.
+
+
+Why the jitter happens (root cause, both elements)
+--------------------------------------------------
+The sidebar layout, simplified:
+
+  .luna-canvas-row                       (position: relative, no transform)
+    .sidebar-shell                       (position: absolute; right: 0;
+                                          width animates 4.875rem -> 49.3125rem;
+                                          transform: scale(--luna-scale);
+                                          transform-origin: top right)
+      .sidebar-host  (display: flex; flex-direction: row)
+        .sidebar-drawer                  (width animates 0 -> 44.4375rem)
+        .sidebar-rail                    (width: 4.875rem, fixed)
+          .rail-dot
+          .rail-label                    (writing-mode: vertical-rl)
+          .rail-dot
+
+During the open/close animation, every frame:
+
+  1. Both the shell width AND the drawer width are interpolating
+     (transition: width 0.35s ease-out on each). The flex layout inside the
+     shell is recomputed every frame so that drawer + rail = shell. The
+     drawer's interpolated width has subpixel residuals, which nudge the rail's
+     pre-transform x by +/- 0.5px frame-to-frame.
+
+  2. The whole shell is then `transform: scale(--luna-scale)`-d, so any
+     subpixel x error gets multiplied by the scale and re-rounded for paint.
+
+  3. Because `width` is animating, the shell can't be promoted to a single
+     static composited layer — it's re-rasterized every frame, so that drift
+     is visible.
+
+  4. The label has the same problem squared: it's vertical text inside a
+     flex column inside that re-rasterizing shell, so the rotated glyphs
+     re-rasterize on subpixel boundaries each frame.
+
+In theory, the rail's right edge should be screen-stable (shell pins right,
+origin top-right, rail is rightmost flex item). In practice the painted
+bitmap drifts because of subpixel rounding of the inner flex layout.
+
+
+The fix (one pattern, applied twice)
+------------------------------------
+Render the rail's *visuals* (background, border, dots, label) as a single
+sibling element of `.sidebar-shell`, sized and positioned in screen
+coordinates from CSS variables that don't animate. The original
+`<button class="sidebar-rail">` is kept as the click target, but its paint
+is stripped (transparent background, no border, hidden children).
+
+  - Overlay element has: pointer-events: none; z-index above the shell.
+  - Original button: keeps layout + click handler; visuals zeroed out.
+  - Original `.rail-dot` / `.rail-label` use `visibility: hidden` (NOT
+    `display: none`) so the button's flex `space-between` still has the same
+    layout — the two dot positions and the click hit area don't shift when
+    you toggle the fix on/off.
+
+Because the overlay lives in `.luna-canvas-row` (which is NOT scaled and
+whose width does NOT animate), it rasterizes once and stays put.
+
+
+Files to change
+---------------
+1) Where you render LunaSidebar (e.g. App.tsx)
+2) Your app stylesheet (e.g. App.css)
+
+No changes needed inside the vendored `LunaSidebar` package.
+
+
+--------------------------------------------------------------------------------
+1. App.tsx — add the overlay as a sibling of LunaSidebar
+--------------------------------------------------------------------------------
+
+Before:
+
+  <LunaChrome
+    sidebar={({ expanded, onExpandedChange }) => (
+      <LunaSidebar
+        ...
+        railLabel="Waypoint guide"
+      />
+    )}
+  >
+    ...
+  </LunaChrome>
+
+After:
+
+  const RAIL_LABEL = 'Waypoint guide'
+
+  <LunaChrome
+    sidebar={({ expanded, onExpandedChange }) => (
+      <>
+        <LunaSidebar
+          ...
+          railLabel={RAIL_LABEL}
+        />
+        {/*
+          Visual rail rendered outside .sidebar-shell so it doesn't share the
+          shell's animating-width / scaled-transform context. The original
+          <button class="sidebar-rail"> below stays as the click target;
+          pointer-events: none lets clicks fall through to it.
+        */}
+        <div className="luna-rail-overlay" aria-hidden="true">
+          <span className="luna-rail-overlay__dot" />
+          <span className="luna-rail-overlay__text">{RAIL_LABEL}</span>
+          <span className="luna-rail-overlay__dot" />
+        </div>
+      </>
+    )}
+  >
+    ...
+  </LunaChrome>
+
+Notes:
+  - Both children of the `sidebar` slot end up as siblings inside
+    `.luna-canvas-row` (LunaChrome renders `{sidebar(...)}` directly inside
+    that row).
+  - aria-hidden="true" because the rail button already carries
+    `aria-label="Toggle sidebar"`; the overlay text is purely decorative.
+  - Keep the `railLabel` prop on LunaSidebar so the (visually hidden) inner
+    label still occupies the same flex space — this keeps the dot positions
+    and button bounding box identical to before.
+
+
+--------------------------------------------------------------------------------
+2. App.css — strip the rail's paint, style the overlay
+--------------------------------------------------------------------------------
+
+/*
+  Rail "jitter" on expand/collapse:
+  The shell animates `width` (and so does the drawer inside it), all under a
+  `transform: scale(...)`. Each frame the inner flex relayouts (drawer + rail
+  = shell) with subpixel rounding, then the whole shell is re-rasterized +
+  scaled — so even though the rail is theoretically pinned to the right edge,
+  its painted bitmap drifts ~1px per frame. Same story for the rotated label.
+
+  Fix: render the rail's visuals (bg, border, dots, label) as a sibling of
+  `.sidebar-shell` so they live outside every animating ancestor (see
+  `.luna-rail-overlay` below + App.tsx). The original
+  `<button class="sidebar-rail">` stays in place as the click target;
+  its paint is stripped.
+*/
+.luna-chrome .sidebar-rail {
+  background: transparent;
+  border-left: 0;
+}
+
+.luna-chrome .sidebar-rail .rail-dot,
+.luna-chrome .sidebar-rail .rail-label {
+  visibility: hidden;
+}
+
+/*
+  Sibling of .sidebar-shell, mounted inside .luna-canvas-row (see App.tsx).
+  Rail anchors right (shell is `position: absolute; right: 0` with
+  `transform-origin: top right`), so we mirror that here and size by the rail's
+  design width × artboard scale. `pointer-events: none` lets clicks fall
+  through to the underlying rail button.
+*/
+.luna-canvas-row > .luna-rail-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: calc(var(--sidebar-rail-w, 4.875rem) * var(--luna-scale, 1));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  background: #404040;
+  border-left: max(1px, calc(0.0625rem * var(--luna-scale, 1))) solid rgba(255, 255, 255, 0.12);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 46;
+}
+
+.luna-canvas-row > .luna-rail-overlay > .luna-rail-overlay__dot {
+  width: calc(0.375rem * var(--luna-scale, 1));
+  height: calc(0.375rem * var(--luna-scale, 1));
+  border-radius: 50%;
+  background: var(--global-color-1, #f9fd5e);
+  flex: 0 0 auto;
+}
+
+.luna-canvas-row > .luna-rail-overlay > .luna-rail-overlay__text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.36em;
+  font-family: 'Figtree', sans-serif;
+  font-weight: 600;
+  font-size: calc(0.6875rem * var(--sidebar-rail-font-mult, 1.65) * var(--luna-scale, 1));
+  color: #fff;
+  white-space: nowrap;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+Variables this depends on (already set by the Luna sidebar package on :root)
+----------------------------------------------------------------------------
+  --sidebar-rail-w           default 4.875rem
+  --sidebar-rail-font-mult   default 1.65
+  --global-color-1           rail dot color (default #f9fd5e)
+  --luna-scale               set on .luna-root by LunaChrome at runtime
+
+If your project doesn't load `LunaSidebar.css` for some reason, the
+fallback values in the `var(..., fallback)` calls keep things sane.
+
+
+How to verify
+-------------
+1. Open DevTools, inspect `<button class="sidebar-rail">`. Toggle the
+   sidebar. The button's bounding box no longer wiggles (it never paints
+   anything visible now anyway).
+2. Inspect `<div class="luna-rail-overlay">` — its bounding box should be
+   identical to the rail's old position (right: 0, width = 4.875rem * scale,
+   full row height). Its rect should not change during the open/close
+   animation.
+3. Click the rail rectangle — it still toggles the sidebar (clicks pass
+   through the overlay and hit the underlying button).
+4. Tab to the sidebar — the focus ring on the button should still appear in
+   the same place (its layout is unchanged).
+
+
+Common adjustments / gotchas
+----------------------------
+- If your rail uses a different background color than `#404040`, update both
+  the original rail (already #404040 in the package) and the overlay.
+- If you change `--sidebar-rail-w`, the overlay tracks it automatically.
+- If your project applies its own `transform` to a parent of
+  `.luna-canvas-row`, the overlay will inherit that transform — fine,
+  because that transform is constant during the animation. The whole point
+  is just to escape the *animating* ancestors.
+- `z-index: 46` is one above the docked sidebar shell's `z-index: 45` (set
+  in `lunaChrome.css`). If your z-index stack differs, adjust accordingly
+  but keep the overlay above the shell.
+- Do NOT use `display: none` on the original `.rail-dot` / `.rail-label` —
+  use `visibility: hidden`. The flex `space-between` on the rail button
+  needs the label to still occupy space so the dots stay at top/bottom.
+- If you also want the focus outline to land on the overlay's rectangle
+  (visually), you can re-create it via
+  `.luna-chrome .sidebar-rail:focus-visible ~ .luna-rail-overlay { outline: ... }`
+  — but this only works if the overlay is a *next sibling* of the rail in
+  the DOM, which it isn't here. Easiest is to leave the focus ring on the
+  button, which lines up fine since the button occupies the same rect.
+
+
+Why this works (one-liner)
+--------------------------
+The painted pixels live on an element whose size, position, and transform
+don't change during the animation, so there's nothing to drift.
