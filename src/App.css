@@ -287,6 +287,28 @@
   background: rgba(255, 255, 255, 0.7);
 }
 
+/*
+  Rail label "jitter" on expand/collapse:
+  - `.sidebar-shell` animates `width` and is itself `transform: scale(...)`-ed by the artboard.
+  - Inside, `.sidebar-rail` is a flex item whose layout is recomputed every animation frame.
+  - `.rail-label` uses `writing-mode: vertical-rl` + `text-rendering: geometricPrecision`, both
+    of which re-rasterize on subpixel parent changes and read as text "wiggle".
+  Promote the rail to its own compositor layer and snap text to a steadier rasterization mode.
+*/
+.luna-chrome .sidebar-rail {
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.luna-chrome .sidebar-rail .rail-label {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  will-change: transform;
+}
+
 /* Luna sidebar: package uses all-caps for step list + Start; use normal casing */
 .luna-chrome .preview-card__step-label {
   text-transform: none;
