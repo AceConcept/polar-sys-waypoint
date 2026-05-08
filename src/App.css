@@ -289,24 +289,49 @@
 
 /*
   Rail label "jitter" on expand/collapse:
-  - `.sidebar-shell` animates `width` and is itself `transform: scale(...)`-ed by the artboard.
-  - Inside, `.sidebar-rail` is a flex item whose layout is recomputed every animation frame.
-  - `.rail-label` uses `writing-mode: vertical-rl` + `text-rendering: geometricPrecision`, both
-    of which re-rasterize on subpixel parent changes and read as text "wiggle".
-  Promote the rail to its own compositor layer and snap text to a steadier rasterization mode.
+  The shell animates `width` and is itself `transform: scale(...)`-ed; the inner `.rail-label`
+  is vertical-text inside a flex column. Each animation frame the shell reflows AND the rotated
+  text re-rasterizes on subpixel boundaries, which reads as "wiggle".
+  Structural fix: render the visible label as a sibling of `.sidebar-shell`
+  (see `.luna-rail-label-overlay` below + `App.tsx`) so it lives outside every animating ancestor.
+  The original `.rail-label` is kept in the DOM so the rail's flex `space-between` still positions
+  the dots, but it's hidden visually.
 */
-.luna-chrome .sidebar-rail {
-  will-change: transform;
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+.luna-chrome .sidebar-rail .rail-label {
+  visibility: hidden;
 }
 
-.luna-chrome .sidebar-rail .rail-label {
+/*
+  Sibling of `.sidebar-shell`, mounted inside `.luna-canvas-row` (see App.tsx).
+  Rail anchors right (shell is `position: absolute; right: 0` with `transform-origin: top right`),
+  so we mirror that here and size by the rail's design width times the artboard scale.
+  `pointer-events: none` lets clicks fall through to the rail button below.
+*/
+.luna-canvas-row > .luna-rail-label-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: calc(var(--sidebar-rail-w, 4.875rem) * var(--luna-scale, 1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 46;
+}
+
+.luna-canvas-row > .luna-rail-label-overlay > .luna-rail-label-overlay__text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.36em;
+  font-family: 'Figtree', sans-serif;
+  font-weight: 600;
+  font-size: calc(0.6875rem * var(--sidebar-rail-font-mult, 1.65) * var(--luna-scale, 1));
+  color: #fff;
+  white-space: nowrap;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  will-change: transform;
 }
 
 /* Luna sidebar: package uses all-caps for step list + Start; use normal casing */

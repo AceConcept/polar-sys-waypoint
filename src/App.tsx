@@ -5,6 +5,8 @@ import { FLOW_SIDEBAR_ITEMS } from './flowSidebarItems'
 import { POLAR_SYS_HASH, useFlowStep, useFlowStore } from './store/flowStore'
 import './App.css'
 
+const RAIL_LABEL = 'Waypoint guide'
+
 function App() {
   const { step, stepIndex } = useFlowStep()
   const goToStepById = useFlowStore((s) => s.goToStepById)
@@ -21,17 +23,27 @@ function App() {
     <LunaChrome
       footerBackgroundUrl="/news_bg.jpg"
       sidebar={({ expanded, onExpandedChange }) => (
-        <LunaSidebar
-          items={FLOW_SIDEBAR_ITEMS}
-          expanded={expanded}
-          onExpandedChange={onExpandedChange}
-          initialActiveId={step.id}
-          onActiveItemChange={(id: string) => {
-            const hit = FLOW_SIDEBAR_ITEMS.find((item) => item.id === id)
-            if (hit) goToStepById(hit.id)
-          }}
-          railLabel="Waypoint guide"
-        />
+        <>
+          <LunaSidebar
+            items={FLOW_SIDEBAR_ITEMS}
+            expanded={expanded}
+            onExpandedChange={onExpandedChange}
+            initialActiveId={step.id}
+            onActiveItemChange={(id: string) => {
+              const hit = FLOW_SIDEBAR_ITEMS.find((item) => item.id === id)
+              if (hit) goToStepById(hit.id)
+            }}
+            railLabel={RAIL_LABEL}
+          />
+          {/*
+            Rail label rendered outside the sidebar shell so it doesn't share the shell's
+            animating-width / scaled-transform context. Visual position is matched in CSS
+            (see `.luna-rail-label-overlay`); clicks pass through to the underlying rail button.
+          */}
+          <div className="luna-rail-label-overlay" aria-hidden="true">
+            <span className="luna-rail-label-overlay__text">{RAIL_LABEL}</span>
+          </div>
+        </>
       )}
     >
       <div className="luna-stage luna-stage--fill">
