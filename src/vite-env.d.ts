@@ -3,7 +3,7 @@
 interface ImportMetaEnv {
   /**
    * Polar-sys app origin for the steps iframe (no trailing slash). If unset,
-   * defaults to `https://polar-sys.vercel.app`.
+   * defaults to `https://polar-sys.guildconcept.workers.dev`.
    */
   readonly VITE_POLAR_SYS_ORIGIN?: string
 

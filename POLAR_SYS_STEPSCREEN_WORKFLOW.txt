@@ -4,7 +4,7 @@
 
 DEPLOYED APP
   Steps load from:
-    https://polar-sys.vercel.app/#/anomaly (and #/monitor, #/incident)
+    https://polar-sys.guildconcept.workers.dev/#/anomaly (and #/monitor, #/incident)
 
   Embed base is centralized in `src/polarSysUrl.ts` with default above. Sidebar
   step ids (`anomaly`, `incident`, `monitor`) map to those hashes via
@@ -19,7 +19,7 @@ OVERRIDE
 
 SHELL ↔ POLAR (inside iframe)
   If polar-sys posts `postMessage(window.parent, { type: 'polar-hash',
-  hash: '#/incident' }, 'https://polar-sys.vercel.app')`, the waypoint sidebar
+  hash: '#/incident' }, 'https://polar-sys.guildconcept.workers.dev')`, the waypoint sidebar
   updates to stay in sync with in-app navigations.
 
 EMBEDDING (CSP)

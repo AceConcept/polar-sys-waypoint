@@ -1,5 +1,5 @@
-/** Hosted polar-sys (default https://polar-sys.vercel.app, e.g. #/anomaly). Override with `VITE_POLAR_SYS_ORIGIN`. */
-const POLAR_SYS_DEFAULT_BASE = 'https://polar-sys.vercel.app'
+/** Hosted polar-sys (default Workers URL, e.g. #/anomaly). Override with `VITE_POLAR_SYS_ORIGIN`. */
+const POLAR_SYS_DEFAULT_BASE = 'https://polar-sys.guildconcept.workers.dev'
 
 export function getPolarSysEmbedBase(): string {
   const raw = import.meta.env.VITE_POLAR_SYS_ORIGIN
